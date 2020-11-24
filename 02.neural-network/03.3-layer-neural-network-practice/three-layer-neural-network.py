@@ -1,3 +1,5 @@
+#이전 모듈들을 합체
+
 import sys
 import os
 from pathlib import Path
