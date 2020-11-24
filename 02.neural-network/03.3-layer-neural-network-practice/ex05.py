@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 import numpy as np
 
-from matplotlib import pyplot as plt
 
 try:
     sys.path.append(os.path.join(os.getcwd()))
