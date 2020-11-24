@@ -14,3 +14,7 @@ def relu(x):
     #return x if x > 0 else 0
 
     return np.maximum(0, x)
+
+# identity activation function
+def identity(x):
+    return x
