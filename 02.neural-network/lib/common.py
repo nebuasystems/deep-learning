@@ -59,7 +59,7 @@ def cross_entropy_error(y, t):
     batch_size = y.shape[0]
 
     delta = 1.e-7
-    e = -np.sum(t * np.log(y+delta)) / batch_size
+    e = -np.sum(t * np.log(y+delta)) / batch_size       # scalar
     return e
 
 def numerical_diff1(f, w, x, t):

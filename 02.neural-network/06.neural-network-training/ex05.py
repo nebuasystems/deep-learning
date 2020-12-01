@@ -1,74 +1,89 @@
-# 신경망학습: 신경망에서의 기울기
+# Training Neural Nework
+# Data Set : MNIST Handwritten Digit Dataset
+# Network: TwolayerNet
+# Estimation: Training
 
-import sys
 import os
-from pathlib import Path
-import numpy as np
-from PIL import Image
+import pickle
+import sys
+import time
 
-from matplotlib import pyplot as plt
+import numpy as np
+from pathlib import Path
 
 try:
     sys.path.append(os.path.join(Path(os.getcwd()).parent, 'lib'))
     from mnist import load_mnist
-    from common import cross_entropy_error, softmax, numerical_gradient2
+    import twolayernet as network
 except ImportError:
-    print('lib ??')
+    print('Library Module Can Not Found')
 
-x = np.array([0.6, 0.9])       # input(x)          2 vector
-t = np.array([0., 0., 1.])     # label(one-hot)    3 vector
+# 1.load training/test data
+(train_x, train_t), (test_x, test_t) = load_mnist(normalize=True, flatten=True, one_hot_label=True)
 
-params = {
-    'w1': np.array([[0.02, 0.224, 0.135],  [0.01, 0.052, 0.345]]),
-    'b1': np.array([0.45, 0.23, 0.11])
-}
+# 2.hyperparameters
+numiters = 12000
+szbatch = 100
+sztrain = train_x.shape[0]  # 60,000
+szepoch = sztrain/szbatch   # 전체 학습 데이터로 학습을 끝마쳤을 때 -> 1epoch: 60,000 / szbatch:100 = 600
+ratelearning = 0.1
 
-
-def forward_propagation():
-    w1 = params['w1']
-    b1 = params['b1']
-
-    a = np.dot(x, w1) + b1
-    y = softmax(a)
-
-    return y
-
-
-def loss():
-    y = forward_propagation()
-    e = cross_entropy_error(y, t)
-
-    return e
-
-def numerical_gradient_net():
-    h = 1e-4
-    gradient = dict()
-
-    for key in params:
-        param = params[key]
-        param_gradient = np.zeros_like(param)
-
-        it = np.nditer(param, flags=['multi_index'], op_flags=['readwrite'])
-        while not it.finished:      #각 매게변수 w에 대한 편미분
-            idx = it.multi_index
-            temp = param[idx]
-
-            param[idx] = temp + h
-            h1 = loss()
-
-            param[idx] = temp - h
-            h2 = loss()
-
-            param_gradient[idx] = (h1 - h2) / (2 * h)
-            param[idx] = temp
-
-            it.iternext()
-
-            gradient[key] = param_gradient
-
-    return gradient
+# 3. initialize network
+network.initialize(sz_input=train_x.shape[1], sz_hidden=50, sz_output=train_t.shape[1])
+# print(network.params['w1'].shape)   # (784, 50)
+# print(network.params['b1'].shape)   # (50,)
+# print(network.params['w2'].shape)   # (50, 10)
+# print(network.params['b2'].shape)   # (10,)
 
 
-g = numerical_gradient_net()
-print(g)
+# 4. training
+train_losses = []
+train_accuracies = []
+test_accuracies = []
 
+for idx in range(1, numiters+1):
+
+    # 4-1. fetch mini-batch
+    batch_mask = np.random.choice(sztrain, szbatch)     # 60,000 => szbatch
+    train_x_batch = train_x[batch_mask]                 # szbatch * 784
+    train_t_batch = train_t[batch_mask]                 # szbatch * 10
+
+    # 4.-2. gradient
+    start = time.time()                 # stopwatch:start
+    gradient = network.numerical_gradient_net(train_x_batch, train_t_batch)     # 모든 파라메터들에 대한 기울기 행렬
+    elapsed = time.time() - start       # stopwatch:end
+
+    # 4-3. update parameter
+    for key in network.params:
+        network.params[key] -= ratelearning * gradient[key]                     # 파라메터들을 각각의 기울기값으로 교정
+
+    # 4-4. train loss
+    loss = network.loss(train_x_batch, train_t_batch)
+    train_losses.append(loss)
+
+    # 4-5 accuracy per epoch
+    if idx % szepoch == 0:
+        train_accuracy = network.accuracy(train_x, train_t)
+        train_accuracies.append(train_accuracy)
+
+        test_accuracy = network.accuracy(test_x, test_t)
+        test_accuracies.append(test_accuracy)
+
+    print(f'#{idx}: loss:{loss}, elapsed time: {elapsed}s')
+
+# 5. Serialization
+params_file = os.path.join(os.getcwd(), 'dataset', f'twolayer_params.pkl')
+trainloss_file = os.path.join(os.getcwd(), 'dataset', f'twolayer_trainloss.pkl')
+trainacc_file = os.path.join(os.getcwd(), 'dataset', f'twolayer_trainacc.pkl')
+testacc_file = os.path.join(os.getcwd(), 'dataset', f'twolayer_testacc.pkl')
+
+print(f'creating pickle...')
+with open(params_file, 'wb') as f_params,\
+        open(trainloss_file, 'wb') as f_trainloss,\
+        open(trainacc_file, 'wb') as f_trainacc,\
+        open(testacc_file, 'wb') as f_testacc:
+    pickle.dump(network.params, f_params, -1)
+    pickle.dump(train_losses, f_trainloss, -1)
+    pickle.dump(train_accuracies, f_trainacc, -1)
+    pickle.dump(test_accuracies, f_testacc, -1)
+print('done!')
