@@ -71,5 +71,14 @@ grad = network.numerical_gradient_net(_x, _t)
 print(grad)
 
 # Backpropagation Gradient ======================================================
-grad = backpropagation_gradient_net(_x, _y)
+network.initialize(3, 2, 3)
 
+_layers = [
+    Affine(network.params['w1'], network.params['b1']),
+    ReLU(),
+    Affine(network.params['w2'], network.params['b2']),
+    SoftmaxWithLoss()
+]
+
+grad = backpropagation_gradient_net(_x, _t)
+print(grad)
